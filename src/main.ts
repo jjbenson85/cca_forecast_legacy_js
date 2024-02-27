@@ -3,7 +3,8 @@ export type WeatherData = {
   average_temperature: number;
   probability_of_rain: number;
 };
-export async function main() {
+
+const loadWeatherData = async () => {
   try {
     const url =
       "https://e75urw7oieiszbzws4gevjwvze0baaet.lambda-url.eu-west-2.on.aws/";
@@ -11,46 +12,52 @@ export async function main() {
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    const weatherData = (await response.json()) as WeatherData[];
+    return (await response.json()) as WeatherData[];
+  } catch (error) {
+    console.error("Failed to fetch weather data:", error);
+    return [];
+  }
+};
 
-    const groupedData = weatherData.reduce((acc, entry) => {
-      const entryDate = new Date(entry.date_time);
-      const dayKey = entryDate.toISOString().split("T")[0];
-      if (!acc[dayKey]) {
-        acc[dayKey] = [];
-      }
-      acc[dayKey].push(entry);
-      return acc;
-    }, {} as { [key: string]: WeatherData[] });
+function handleData(weatherData: WeatherData[]) {
+  const groupedData = weatherData.reduce((acc, entry) => {
+    const entryDate = new Date(entry.date_time);
+    const dayKey = entryDate.toISOString().split("T")[0];
+    if (!acc[dayKey]) {
+      acc[dayKey] = [];
+    }
+    acc[dayKey].push(entry);
+    return acc;
+  }, {} as { [key: string]: WeatherData[] });
 
-    const container = document.getElementById("forecast-summaries")!;
+  const container = document.getElementById("forecast-summaries")!;
 
-    Object.entries(groupedData).forEach(([day, entries]) => {
-      const allTemps = entries.map((entry) => entry.average_temperature);
-      const morningEntries = entries.filter((entry) => {
-        const hour = new Date(entry.date_time).getHours();
-        return hour >= 6 && hour < 12;
-      });
-      const afternoonEntries = entries.filter((entry) => {
-        const hour = new Date(entry.date_time).getHours();
-        return hour >= 12 && hour < 18;
-      });
+  Object.entries(groupedData).forEach(([day, entries]) => {
+    const allTemps = entries.map((entry) => entry.average_temperature);
+    const morningEntries = entries.filter((entry) => {
+      const hour = new Date(entry.date_time).getHours();
+      return hour >= 6 && hour < 12;
+    });
+    const afternoonEntries = entries.filter((entry) => {
+      const hour = new Date(entry.date_time).getHours();
+      return hour >= 12 && hour < 18;
+    });
 
-      const morningTemps = morningEntries.map(
-        (entry) => entry.average_temperature
-      );
-      const morningRains = morningEntries.map(
-        (entry) => entry.probability_of_rain
-      );
-      const afternoonTemps = afternoonEntries.map(
-        (entry) => entry.average_temperature
-      );
-      const afternoonRains = afternoonEntries.map(
-        (entry) => entry.probability_of_rain
-      );
+    const morningTemps = morningEntries.map(
+      (entry) => entry.average_temperature
+    );
+    const morningRains = morningEntries.map(
+      (entry) => entry.probability_of_rain
+    );
+    const afternoonTemps = afternoonEntries.map(
+      (entry) => entry.average_temperature
+    );
+    const afternoonRains = afternoonEntries.map(
+      (entry) => entry.probability_of_rain
+    );
 
-      const summaryElement = document.createElement("div");
-      summaryElement.innerHTML = `
+    const summaryElement = document.createElement("div");
+    summaryElement.innerHTML = `
                 <h3>Day: ${new Date(day).toLocaleDateString(undefined, {
                   weekday: "long",
                   month: "long",
@@ -91,11 +98,13 @@ export async function main() {
                 <p>High Temperature: ${Math.max(...allTemps)}</p>
                 <p>Low Temperature: ${Math.min(...allTemps)}</p>
             `;
-      container.appendChild(summaryElement);
-    });
-  } catch (error) {
-    console.error("Failed to fetch weather data:", error);
-  }
+    container.appendChild(summaryElement);
+  });
+}
+
+export async function main() {
+  const data = await loadWeatherData();
+  handleData(data);
 }
 
 document.addEventListener("DOMContentLoaded", main);
